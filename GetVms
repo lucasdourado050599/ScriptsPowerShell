@@ -1,0 +1,45 @@
+$StorageKey = "StorageKey"
+
+Remove-Item –path "$Env:temp/Vms.csv"
+
+$subs = Get-AzSubscription
+$exportvms = @()
+
+foreach ($sub in $subs){
+
+
+    Select-AzSubscription -Subscription $sub.id > $null
+
+
+    $vms = $null
+    $vms = Get-AzVM 
+
+    foreach ($vm in $vms){
+        
+        if ($vm.licensetype -notlike $null){
+            $obj = $null
+            $obj = New-Object System.Object
+            $obj | Add-Member -MemberType NoteProperty -Name "Subscription" -Value $sub.Name
+            $obj | Add-Member -MemberType NoteProperty -Name "Subscription Id" -Value $sub.Id
+            $obj | Add-Member -MemberType NoteProperty -Name  "Resource Group" -Value $vm.ResourceGroupName
+            $obj | Add-Member -MemberType NoteProperty -Name  "VM Name" -Value $vm.name
+            $obj | Add-Member -MemberType NoteProperty -Name  "Location" -Value $vm.Location
+            $obj | Add-Member -MemberType NoteProperty -Name  "VM Size" -Value $vm.HardwareProfile.VmSize
+            $obj | Add-Member -MemberType NoteProperty -Name  "Image Reference" -Value $vm.storageProfile.imageReference.Publisher
+            $obj | Add-Member -MemberType NoteProperty -Name  "Image Version" -Value  $vm.StorageProfile.ImageReference.sku
+            $obj | Add-Member -MemberType NoteProperty -Name  "Hybrid Benefit" -Value $vm.licensetype
+            $exportvms += $obj
+
+         }
+            
+                        
+    }
+}
+
+$exportvms  | Export-csv  "$Env:temp/Vms.csv" -NoTypeInformation -append
+	
+$Context = New-AzStorageContext -StorageAccountName "InserirStorageAccountName" -StorageAccountKey $StorageKey
+Remove-AzStorageBlob -Blob "Vms.csv" -Container "InserirContainer" -Context $Context
+Set-AzStorageBlobContent -Context $Context -Container "InserirContainer" -File "$Env:temp/Vms.csv" -Blob "Vms.csv" -force
+
+
